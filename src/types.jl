@@ -6,13 +6,12 @@ abstract Mesh
 # It's still experimental, but this design has been working well for me so far.
 # This type is also heavily linked to GLVisualize, which means if you can transform another meshtype to this type
 # chances are high that GLVisualize can display them.
-immutable HomogenousMesh{VertT, FaceT, NormalT, TexCoordT, ColorT, AttribT, AttribIDT} <: Mesh
+immutable HomogenousMesh{VertT, FaceT, NormalT, TexCoordT, AttribT, AttribIDT} <: Mesh
   vertices            ::Vector{VertT}
   faces               ::Vector{FaceT}
   normals             ::Vector{NormalT}
   texturecoordinates  ::Vector{TexCoordT}
-  color               ::ColorT
-  attributes          ::AttribT
+  attributes          ::Vector{Attribute}
   attribute_id        ::Vector{AttribIDT}
 end
 
@@ -22,11 +21,12 @@ end
 call{T <: Mesh}(::Type{T}, f::File) = read(f, T)
 
 typealias HMesh HomogenousMesh
-vertextype            {_VertT,    _1, _2, _3, _4, _5, _6}(::Type{HomogenousMesh{_VertT,    _1, _2, _3, _4, _5, _6}}) = _VertT
-facetype              {_1, FaceT,     _2, _3, _4, _5, _6}(::Type{HomogenousMesh{_1, FaceT,     _2, _3, _4, _5, _6}}) = FaceT
-normaltype            {_1, _2, NormalT,   _3, _4, _5, _6}(::Type{HomogenousMesh{_1, _2, NormalT,   _3, _4, _5, _6}}) = NormalT
-texturecoordinatetype {_1, _2, _3, TexCoordT, _4, _5, _6}(::Type{HomogenousMesh{_1, _2, _3, TexCoordT, _4, _5, _6}}) = TexCoordT
-colortype             {_1, _2, _3, _4, ColorT,    _5, _6}(::Type{HomogenousMesh{_1, _2, _3, _4, ColorT,    _5, _6}}) = ColorT
+vertextype            {_VertT,    _1, _2, _3, _4,  _5}(::Type{HomogenousMesh{_VertT,    _1, _2, _3, _4, _5}}) = _VertT
+facetype              {_1, FaceT,     _2, _3, _4,  _5}(::Type{HomogenousMesh{_1, FaceT,     _2, _3, _4, _5}}) = FaceT
+normaltype            {_1, _2, NormalT,   _3, _4,  _5}(::Type{HomogenousMesh{_1, _2, NormalT,   _3, _4, _5}}) = NormalT
+texturecoordinatetype {_1, _2, _3, TexCoordT, _4,  _5}(::Type{HomogenousMesh{_1, _2, _3, TexCoordT, _4, _5}}) = TexCoordT
+attributetype         {_1, _2, _3, _4, AttribT,    _5}(::Type{HomogenousMesh{_1, _2, _3, _4, AttribT      }}) = ColorT
+attribute_idtype      {_1, _2, _3, _4, _5, AttribIDT }(::Type{HomogenousMesh{_1, _2, _3, _4, _5, AttribIDT}}) = AttribIDT
 
 # Bad, bad name! But it's a little tricky to filter out faces and verts from the attributes, after get_attribute
 attributes_noVF(m::Mesh) = filter((key,val) -> (val != nothing && val != Void[]), Dict{Symbol, Any}(map(field->(field => m.(field)), fieldnames(typeof(m))[3:end])))
@@ -41,32 +41,32 @@ all_attributes{M <: HMesh}(m::M)       = Dict{Symbol, Any}(map(field -> (field =
 #Some Aliases
 typealias HMesh HomogenousMesh
 
-typealias PlainMesh{VT, FT}  HMesh{Point3{VT}, FT, Void, Void,  Void, Void, Void}
+typealias PlainMesh{VT, FT}  HMesh{Point3{VT}, FT, Void, Void, Void, Void}
 typealias GLPlainMesh PlainMesh{Float32, GLTriangle} 
 
-typealias Mesh2D{VT, FT}  HMesh{Point2{VT}, FT, Void, Void,  Void, Void, Void}
+typealias Mesh2D{VT, FT}  HMesh{Point2{VT}, FT, Void, Void,  Void, Void}
 typealias GLMesh2D Mesh2D{Float32, GLTriangle} 
 
-typealias UVMesh{VT, FT, UVT}  HMesh{Point3{VT}, FT, Void, UV{UVT},  Void, Void, Void}
+typealias UVMesh{VT, FT, UVT}  HMesh{Point3{VT}, FT, Void, UV{UVT}, Void, Void}
 typealias GLUVMesh UVMesh{Float32, GLTriangle, Float32} 
 
-typealias UVWMesh{VT, FT, UVT} HMesh{Point3{VT}, FT, Void, UVW{UVT}, Void, Void, Void}
+typealias UVWMesh{VT, FT, UVT} HMesh{Point3{VT}, FT, Void, UVW{UVT}, Void, Void}
 typealias GLUVWMesh UVWMesh{Float32, GLTriangle, Float32} 
 
-typealias NormalMesh{VT, FT, NT}  HMesh{Point3{VT}, FT, Normal3{NT}, Void,  Void, Void, Void}
+typealias NormalMesh{VT, FT, NT}  HMesh{Point3{VT}, FT, Normal3{NT},  Void, Void, Void}
 typealias GLNormalMesh NormalMesh{Float32, GLTriangle, Float32} 
 
-typealias UVMesh2D{VT, FT, UVT}  HMesh{Point2{VT}, FT, Void, UV{UVT},  Void, Void, Void}
+typealias UVMesh2D{VT, FT, UVT}  HMesh{Point2{VT}, FT, Void, UV{UVT}, Void, Void}
 typealias GLUVMesh2D UVMesh2D{Float32, GLTriangle, Float32} 
 
-typealias NormalColorMesh{VT, FT, NT, CT}  HMesh{Point3{VT}, FT, Normal3{NT}, Void,  CT, Void, Void}
+typealias NormalColorMesh{VT, FT, NT, CT}  HMesh{Point3{VT}, FT, Normal3{NT},  CT, Void, Void}
 typealias GLNormalColorMesh NormalColorMesh{Float32, GLTriangle, Float32, RGBA{Float32}} 
 
 
-typealias NormalAttributeMesh{VT, FT, NT, AT, A_ID_T} HMesh{Point3{VT}, FT, Normal3{NT}, Void,  Void, AT, A_ID_T}
-typealias GLNormalAttributeMesh NormalAttributeMesh{Float32, GLTriangle, Float32, Vector{RGBAU8}, Float32} 
+typealias NormalColorMesh{VT, FT, NT, AT, A_ID_T} HMesh{Point3{VT}, FT, Normal3{NT}, Void, AT, A_ID_T}
+typealias GLNormalColorMesh NormalColorMesh{Float32, GLTriangle, Float32, Vector{RGBAU8}, Float32} 
 
-typealias NormalUVWMesh{VT, FT, NT, UVT}  HMesh{Point3{VT}, FT, Normal3{NT}, UVW{UVT},  Void, Void, Void}
+typealias NormalUVWMesh{VT, FT, NT, UVT}  HMesh{Point3{VT}, FT, Normal3{NT}, UVW{UVT}, Void, Void}
 typealias GLNormalUVWMesh NormalUVWMesh{Float32, GLTriangle, Float32, Float32} 
 
 # Needed to not get into an stack overflow
